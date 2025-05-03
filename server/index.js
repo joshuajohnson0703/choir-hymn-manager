@@ -1,22 +1,19 @@
+// server/index.js
 const express = require('express');
 const path = require('path');
+const { exec } = require('child_process');
 const cors = require('cors');
-const { spawn } = require('child_process');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-// Middleware
+// Path to your generated PPTX
+const OUTPUT_PATH = path.join(__dirname, '../PowerPoints/updated_master.pptx');
+
 app.use(cors());
 app.use(express.json());
 
-// Serve React static assets from build/
-app.use(express.static(path.join(__dirname, '..', 'build')));
-
-// Path to generated PPTX file
-const OUTPUT_FILE = path.join(__dirname, '..', 'PowerPoints', 'updated_master.pptx');
-
-// Generate PPTX endpoint
+// 1) API endpoint to generate the PPTX
 app.post('/generate-pptx', (req, res) => {
   const {
     openingHymn,
@@ -28,46 +25,48 @@ app.post('/generate-pptx', (req, res) => {
     doxologySlide
   } = req.body;
 
+  // Build the python CLI args
   const scriptPath = path.join(__dirname, 'powerpoint_script.py');
   const args = [
-    '--blank', path.join(__dirname, '..', 'PowerPoints', 'blank.pptx'),
-    '--hymnFolder', path.join(__dirname, '..', 'PowerPoints', 'Powerpoint'),
-    '--opening', openingHymn,
-    '--between', betweenLessons,
-    '--bday', bdayHymn,
-    '--offertory', offertory,
+    '--blank',      `"${path.join(__dirname, '../PowerPoints/blank.pptx')}"`,
+    '--hymnFolder', `"${path.join(__dirname, '../PowerPoints/Powerpoint')}"`,
+    '--opening',    openingHymn,
+    '--between',    betweenLessons,
+    '--bday',       bdayHymn,
+    '--offertory',  offertory,
     '--confession', confession,
-    '--communion', communionHymns.join(','),
-    '--doxology', doxologySlide
+    '--communion',  communionHymns.join(','),
+    '--doxology',   doxologySlide
   ];
 
-  const py = spawn('python', [scriptPath, ...args]);
-  let stdout = '';
-  let stderr = '';
-
-  py.stdout.on('data', data => stdout += data.toString());
-  py.stderr.on('data', data => stderr += data.toString());
-
-  py.on('close', code => {
-    if (code === 0) {
-      return res.json({ success: true, message: stdout.trim() });
+  const cmd = `python "${scriptPath}" ${args.join(' ')}`;
+  exec(cmd, (err, stdout, stderr) => {
+    if (err) {
+      console.error('Generation error:', stderr);
+      return res.status(500).json({ success: false, error: stderr });
     }
-    console.error(stderr);
-    res.status(500).json({ success: false, error: stderr.trim() });
+    console.log('Generation output:', stdout);
+    res.json({ success: true });
   });
 });
 
-// Download generated PPTX
+// 2) Endpoint to download the finished file
 app.get('/download', (req, res) => {
-  res.download(OUTPUT_FILE, 'ChurchServiceDeck.pptx');
+  res.download(OUTPUT_PATH, 'ChurchServiceDeck.pptx', err => {
+    if (err) console.error('Download error:', err);
+  });
 });
 
-// Catch-all: serve React index.html for any other GET request
-app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, '..', 'build', 'index.html'));
-});
+// 3) (Optional) Serve React’s build directory if you colocate frontend+API
+//    Make sure you run `npm run build` in your root so `/build` exists.
+const buildPath = path.join(__dirname, '../build');
+if (process.env.NODE_ENV === 'production' && require('fs').existsSync(buildPath)) {
+  app.use(express.static(buildPath));
+  app.get('*', (req, res) => {
+    res.sendFile(path.join(buildPath, 'index.html'));
+  });
+}
 
-// Start server
 app.listen(PORT, () => {
-  console.log(`Server running on http://localhost:${PORT}`);
+  console.log(`✅ Server listening on port ${PORT}`);
 });
