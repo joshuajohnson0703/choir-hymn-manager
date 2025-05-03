@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import './App.css';
 
 export default function App() {
   const [openingHymn, setOpeningHymn] = useState('');
@@ -10,122 +11,132 @@ export default function App() {
   const [communionHymns, setCommunionHymns] = useState([]);
   const [doxologySlide, setDoxologySlide] = useState('');
 
+  const [loading, setLoading] = useState(false);
+  const [readyToDownload, setReadyToDownload] = useState(false);
+
   const addCommunionHymn = () => {
-    const trimmed = communionInput.trim();
-    if (trimmed) {
-      setCommunionHymns(prev => [...prev, trimmed]);
+    const code = communionInput.trim();
+    if (code) {
+      setCommunionHymns(prev => [...prev, code]);
       setCommunionInput('');
     }
   };
 
-  const handleSubmit = e => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    const data = {
-      openingHymn,
-      betweenLessons,
-      bdayHymn,
-      offertory,
-      confession,
-      communionHymns,
-      doxologySlide,
-    };
-    console.log('Form Data:', data);
-    // TODO: integrate with backend or file processing
+    setLoading(true);
+    setReadyToDownload(false);
+    try {
+      const res = await fetch('/generate-pptx', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          openingHymn,
+          betweenLessons,
+          bdayHymn,
+          offertory,
+          confession,
+          communionHymns,
+          doxologySlide,
+        }),
+      });
+      if (res.ok) setReadyToDownload(true);
+      else alert('Server error generating presentation.');
+    } catch (err) {
+      console.error(err);
+      alert('Network error generating presentation.');
+    }
+    setLoading(false);
+  };
+
+  const handleDownload = async () => {
+    try {
+      const res = await fetch('/download');
+      if (!res.ok) throw new Error('Download failed');
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'ChurchServiceDeck.pptx';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error(err);
+      alert('Error downloading file.');
+    }
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center p-6">
-      <div className="w-full max-w-lg bg-white rounded-xl shadow-xl p-8">
-        <h1 className="text-4xl font-extrabold text-center text-gray-800 mb-8">
-          Choir Hymn Manager
-        </h1>
-
-        <form onSubmit={handleSubmit} className="space-y-8">
-
-          {/* Core Hymns Section */}
-          <section className="space-y-6">
-            <h2 className="text-2xl font-semibold text-gray-700">Core Hymns</h2>
+    <div className="container">
+      <div className="card">
+        <h1 className="title">Choir Hymn Manager</h1>
+        <form onSubmit={handleSubmit} className="form">
+          <div className="form-section">
+            <h2>Core Hymns</h2>
             {[
-              {label: 'Opening Hymn (e.g. 001)', value: openingHymn, setter: setOpeningHymn},
-              {label: 'Between Lessons Hymn', value: betweenLessons, setter: setBetweenLessons},
-              {label: 'Birthday & WA Hymn', value: bdayHymn, setter: setBdayHymn},
-              {label: 'Offertory Hymn', value: offertory, setter: setOffertory},
-              {label: 'Confession Hymn', value: confession, setter: setConfession},
-            ].map(({label, value, setter}, idx) => (
-              <div key={idx} className="flex flex-col">
-                <label htmlFor={`field-${idx}`} className="text-gray-600 font-medium mb-2">
-                  {label}
-                </label>
+              ['Opening Hymn (e.g. 001)', openingHymn, setOpeningHymn],
+              ['Between Lessons Hymn', betweenLessons, setBetweenLessons],
+              ['Birthday & WA Hymn', bdayHymn, setBdayHymn],
+              ['Offertory Hymn', offertory, setOffertory],
+              ['Confession Hymn', confession, setConfession],
+            ].map(([label, value, setter], idx) => (
+              <div key={idx} className="form-group">
+                <label>{label}</label>
                 <input
-                  id={`field-${idx}`}
                   type="text"
                   value={value}
                   onChange={e => setter(e.target.value)}
-                  className="w-full p-3 border border-gray-200 rounded-lg bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-400"
                 />
               </div>
             ))}
-          </section>
+          </div>
 
-          <hr className="border-gray-200" />
-
-          {/* Communion Hymns Section */}
-          <section className="space-y-4">
-            <h2 className="text-2xl font-semibold text-gray-700">Communion Hymns</h2>
-            <div className="flex gap-2">
+          <div className="form-section">
+            <h2>Communion Hymns</h2>
+            <div className="form-group-inline">
               <input
                 type="text"
-                placeholder="Enter 3-digit code"
+                placeholder="Enter code"
                 value={communionInput}
                 onChange={e => setCommunionInput(e.target.value)}
-                className="flex-grow p-3 border border-gray-200 rounded-lg bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-400"
               />
-              <button
-                type="button"
-                onClick={addCommunionHymn}
-                className="px-6 py-3 bg-blue-500 text-white rounded-lg font-medium hover:bg-blue-600 transition-shadow shadow"
-              >
+              <button type="button" onClick={addCommunionHymn} className="btn">
                 Add
               </button>
             </div>
             {communionHymns.length > 0 && (
-              <ul className="list-disc list-inside pl-5 space-y-1">
-                {communionHymns.map((h, i) => (
-                  <li key={i} className="text-gray-600">{h}</li>
-                ))}
+              <ul className="list">
+                {communionHymns.map((h, i) => (<li key={i}>{h}</li>))}
               </ul>
             )}
-          </section>
+          </div>
 
-          <hr className="border-gray-200" />
-
-          {/* Doxology Section */}
-          <section className="space-y-2">
-            <h2 className="text-2xl font-semibold text-gray-700">Doxology</h2>
-            <div className="flex flex-col">
-              <label htmlFor="doxologySlide" className="text-gray-600 font-medium mb-2">
-                Slide Number (1-10)
-              </label>
+          <div className="form-section">
+            <h2>Doxology</h2>
+            <div className="form-group">
+              <label>Slide Number (1-10)</label>
               <input
-                id="doxologySlide"
                 type="number"
                 min="1"
                 max="10"
                 value={doxologySlide}
                 onChange={e => setDoxologySlide(e.target.value)}
-                className="w-32 p-3 border border-gray-200 rounded-lg bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-400"
               />
             </div>
-          </section>
+          </div>
 
-          {/* Submit Button */}
-          <button
-            type="submit"
-            className="w-full py-4 bg-green-500 text-white font-semibold rounded-lg hover:bg-green-600 transition-shadow shadow"
-          >
-            Submit
-          </button>
+          {loading && <div className="spinner"></div>}
+
+          {!loading && <button type="submit" className="btn">Submit</button>}
         </form>
+
+        {readyToDownload && !loading && (
+          <button onClick={handleDownload} className="btn btn-download">
+            Download Presentation
+          </button>
+        )}
       </div>
     </div>
   );
