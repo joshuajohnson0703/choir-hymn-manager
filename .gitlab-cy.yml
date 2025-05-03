@@ -1,31 +1,16 @@
-image: node:18
+image: node:16
 
-stages:
-  - build
-  - deploy
-
-cache:
-  paths:
-    - node_modules/
-
-build_frontend:
-  stage: build
-  script:
-    - npm ci
-    - npm run build           # builds into “build/”
-    - mv build public         # Pages expects a “public/” directory
-  artifacts:
+default:
+  cache:
     paths:
-      - public
-  only:
-    - main                    # or your default branch name
+      - node_modules/
 
 pages:
   stage: deploy
   script:
-    - echo "Deploying to GitLab Pages"
-  dependencies:
-    - build_frontend
+    - npm ci
+    - npm run build
+    - mv build public
   artifacts:
     paths:
       - public
