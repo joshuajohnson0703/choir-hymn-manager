@@ -1,8 +1,7 @@
 import React, { useState } from 'react';
 import './App.css';
 
-// Base URL for API; override via environment variable
-const API_URL = process.env.REACT_APP_API_URL || 'https://choir-hymn-manager.onrender.com';
+const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
 
 export default function App() {
   const [openingHymn, setOpeningHymn] = useState('');
@@ -44,31 +43,18 @@ export default function App() {
           doxologySlide,
         }),
       });
-      if (!response.ok) throw new Error('Server error');
-      setReadyToDownload(true);
-    } catch (err) {
-      console.error(err);
-      alert(`Error: ${err.message}`);
-    }
-    setLoading(false);
-  };
 
-  const handleDownload = async () => {
-    try {
-      const res = await fetch(`${API_URL}/download`);
-      if (!res.ok) throw new Error('Download failed');
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = 'ChurchServiceDeck.pptx';
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      URL.revokeObjectURL(url);
-    } catch (err) {
-      console.error(err);
-      alert(`Download error: ${err.message}`);
+      if (!response.ok) {
+        const err = await response.json();
+        alert(`Error: ${err.error || response.statusText}`);
+      } else {
+        setReadyToDownload(true);
+      }
+    } catch (error) {
+      console.error(error);
+      alert('Network error: could not reach server');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -76,7 +62,9 @@ export default function App() {
     <div className="container">
       <div className="card">
         <h1 className="title">Choir Hymn Manager</h1>
-        <form onSubmit={handleSubmit} className="form">
+
+        <form onSubmit={handleSubmit}>
+          {/* Core Hymns */}
           <div className="form-section">
             <h2>Core Hymns</h2>
             {[
@@ -85,10 +73,11 @@ export default function App() {
               ['Birthday & WA Hymn', bdayHymn, setBdayHymn],
               ['Offertory Hymn', offertory, setOffertory],
               ['Confession Hymn', confession, setConfession],
-            ].map(([label, value, setter], idx) => (
-              <div key={idx} className="form-group">
-                <label>{label}</label>
+            ].map(([label, value, setter], i) => (
+              <div key={i} className="form-group">
+                <label htmlFor={`field-${i}`}>{label}</label>
                 <input
+                  id={`field-${i}`}
                   type="text"
                   value={value}
                   onChange={e => setter(e.target.value)}
@@ -97,31 +86,32 @@ export default function App() {
             ))}
           </div>
 
+          {/* Communion Hymns */}
           <div className="form-section">
             <h2>Communion Hymns</h2>
             <div className="form-group-inline">
               <input
                 type="text"
-                placeholder="Enter code"
+                placeholder="Enter 3-digit code"
                 value={communionInput}
                 onChange={e => setCommunionInput(e.target.value)}
               />
-              <button type="button" onClick={addCommunionHymn} className="btn">
-                Add
-              </button>
+              <button type="button" onClick={addCommunionHymn}>Add</button>
             </div>
             {communionHymns.length > 0 && (
-              <ul className="list">
-                {communionHymns.map((h, i) => (<li key={i}>{h}</li>))}
+              <ul>
+                {communionHymns.map((h, i) => <li key={i}>{h}</li>)}
               </ul>
             )}
           </div>
 
+          {/* Doxology */}
           <div className="form-section">
             <h2>Doxology</h2>
             <div className="form-group">
-              <label>Slide Number (1-10)</label>
+              <label htmlFor="doxologySlide">Slide Number (1-10)</label>
               <input
+                id="doxologySlide"
                 type="number"
                 min="1"
                 max="10"
@@ -131,16 +121,25 @@ export default function App() {
             </div>
           </div>
 
+          {/* Loader */}
           {loading && <div className="spinner"></div>}
 
-          {!loading && <button type="submit" className="btn">Submit</button>}
-        </form>
+          {/* Submit */}
+          {!loading && (
+            <button type="submit" className="btn">Generate Presentation</button>
+          )}
 
-        {readyToDownload && !loading && (
-          <button onClick={handleDownload} className="btn btn-download">
-            Download Presentation
-          </button>
-        )}
+          {/* Download */}
+          {readyToDownload && !loading && (
+            <button
+              type="button"
+              className="btn btn-download"
+              onClick={() => window.open(`${API_URL}/download`, '_blank')}
+            >
+              Download ChurchServiceDeck.pptx
+            </button>
+          )}
+        </form>
       </div>
     </div>
   );
