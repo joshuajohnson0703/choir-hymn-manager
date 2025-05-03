@@ -1,15 +1,15 @@
 {
   "files": {
     "main.css": "/choir-hymn-manager/static/css/main.b58ee62e.css",
-    "main.js": "/choir-hymn-manager/static/js/main.d5940562.js",
+    "main.js": "/choir-hymn-manager/static/js/main.48445c4a.js",
     "static/js/453.dbf9f6eb.chunk.js": "/choir-hymn-manager/static/js/453.dbf9f6eb.chunk.js",
     "index.html": "/choir-hymn-manager/index.html",
     "main.b58ee62e.css.map": "/choir-hymn-manager/static/css/main.b58ee62e.css.map",
-    "main.d5940562.js.map": "/choir-hymn-manager/static/js/main.d5940562.js.map",
+    "main.48445c4a.js.map": "/choir-hymn-manager/static/js/main.48445c4a.js.map",
     "453.dbf9f6eb.chunk.js.map": "/choir-hymn-manager/static/js/453.dbf9f6eb.chunk.js.map"
   },
   "entrypoints": [
     "static/css/main.b58ee62e.css",
-    "static/js/main.d5940562.js"
+    "static/js/main.48445c4a.js"
   ]
 }
