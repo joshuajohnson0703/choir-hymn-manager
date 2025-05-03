@@ -1,6 +1,9 @@
 import React, { useState } from 'react';
 import './App.css';
 
+// Base URL for API; override via environment variable
+const API_URL = process.env.REACT_APP_API_URL || 'https://your-backend.onrender.com';
+
 export default function App() {
   const [openingHymn, setOpeningHymn] = useState('');
   const [betweenLessons, setBetweenLessons] = useState('');
@@ -15,9 +18,9 @@ export default function App() {
   const [readyToDownload, setReadyToDownload] = useState(false);
 
   const addCommunionHymn = () => {
-    const code = communionInput.trim();
-    if (code) {
-      setCommunionHymns(prev => [...prev, code]);
+    const trimmed = communionInput.trim();
+    if (trimmed) {
+      setCommunionHymns(prev => [...prev, trimmed]);
       setCommunionInput('');
     }
   };
@@ -26,8 +29,9 @@ export default function App() {
     e.preventDefault();
     setLoading(true);
     setReadyToDownload(false);
+
     try {
-      const res = await fetch('/generate-pptx', {
+      const response = await fetch(`${API_URL}/generate-pptx`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -40,18 +44,18 @@ export default function App() {
           doxologySlide,
         }),
       });
-      if (res.ok) setReadyToDownload(true);
-      else alert('Server error generating presentation.');
+      if (!response.ok) throw new Error('Server error');
+      setReadyToDownload(true);
     } catch (err) {
       console.error(err);
-      alert('Network error generating presentation.');
+      alert(`Error: ${err.message}`);
     }
     setLoading(false);
   };
 
   const handleDownload = async () => {
     try {
-      const res = await fetch('/download');
+      const res = await fetch(`${API_URL}/download`);
       if (!res.ok) throw new Error('Download failed');
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
@@ -64,7 +68,7 @@ export default function App() {
       URL.revokeObjectURL(url);
     } catch (err) {
       console.error(err);
-      alert('Error downloading file.');
+      alert(`Download error: ${err.message}`);
     }
   };
 

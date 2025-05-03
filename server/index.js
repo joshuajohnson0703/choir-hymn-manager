@@ -1,45 +1,73 @@
 const express = require('express');
 const path = require('path');
-const { exec } = require('child_process');
 const cors = require('cors');
-const app = express();
+const { spawn } = require('child_process');
 
+const app = express();
+const PORT = process.env.PORT || 5000;
+
+// Middleware
 app.use(cors());
 app.use(express.json());
 
-const OUTPUT_PATH = path.join(__dirname, '../PowerPoints/updated_master.pptx');
+// Serve React static assets from build/
+app.use(express.static(path.join(__dirname, '..', 'build')));
 
+// Path to generated PPTX file
+const OUTPUT_FILE = path.join(__dirname, '..', 'PowerPoints', 'updated_master.pptx');
+
+// Generate PPTX endpoint
 app.post('/generate-pptx', (req, res) => {
-  const data = req.body;
+  const {
+    openingHymn,
+    betweenLessons,
+    bdayHymn,
+    offertory,
+    confession,
+    communionHymns,
+    doxologySlide
+  } = req.body;
 
+  const scriptPath = path.join(__dirname, 'powerpoint_script.py');
   const args = [
-    '--blank', `"${path.join(__dirname, '../PowerPoints/blank.pptx')}"`,
-    '--hymnFolder', `"${path.join(__dirname, '../PowerPoints/Powerpoint')}"`,
-    '--opening', data.openingHymn,
-    '--between', data.betweenLessons,
-    '--bday', data.bdayHymn,
-    '--offertory', data.offertory,
-    '--confession', data.confession,
-    '--communion', data.communionHymns.join(','),
-    '--doxology', data.doxologySlide,
+    '--blank', path.join(__dirname, '..', 'PowerPoints', 'blank.pptx'),
+    '--hymnFolder', path.join(__dirname, '..', 'PowerPoints', 'Powerpoint'),
+    '--opening', openingHymn,
+    '--between', betweenLessons,
+    '--bday', bdayHymn,
+    '--offertory', offertory,
+    '--confession', confession,
+    '--communion', communionHymns.join(','),
+    '--doxology', doxologySlide
   ];
 
-  const command = `python ./server/powerpoint_script.py ${args.join(' ')}`;
+  const py = spawn('python', [scriptPath, ...args]);
+  let stdout = '';
+  let stderr = '';
 
-  exec(command, (error, stdout, stderr) => {
-    if (error) {
-      console.error(stderr);
-      return res.status(500).send('PPTX generation failed.');
+  py.stdout.on('data', data => stdout += data.toString());
+  py.stderr.on('data', data => stderr += data.toString());
+
+  py.on('close', code => {
+    if (code === 0) {
+      return res.json({ success: true, message: stdout.trim() });
     }
-    console.log(stdout);
-    res.sendStatus(200);
+    console.error(stderr);
+    res.status(500).json({ success: false, error: stderr.trim() });
   });
 });
 
+// Download generated PPTX
 app.get('/download', (req, res) => {
-  res.download(OUTPUT_PATH, 'ChurchServiceDeck.pptx');
+  res.download(OUTPUT_FILE, 'ChurchServiceDeck.pptx');
 });
 
-app.listen(5000, () => {
-  console.log('Server running on http://localhost:5000');
+// Catch-all: serve React index.html for any other GET request
+app.get('*', (req, res) => {
+  res.sendFile(path.join(__dirname, '..', 'build', 'index.html'));
+});
+
+// Start server
+app.listen(PORT, () => {
+  console.log(`Server running on http://localhost:${PORT}`);
 });
