@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import './App.css';
 
 // Base URL for API; override via environment variable
-const API_URL = process.env.REACT_APP_API_URL || 'https://your-backend.onrender.com';
+const API_URL = process.env.REACT_APP_API_URL || 'https://choir-hymn-manager.onrender.com';
 
 export default function App() {
   const [openingHymn, setOpeningHymn] = useState('');
