@@ -13,21 +13,24 @@ build:
   script:
     - npm ci
     - npm run build        # builds into `build/`
+    - mkdir -p public      # Ensure `public/` exists as a fallback
     - mv build public      # Pages requires `public/`
   artifacts:
     paths:
-      - public
   only:
+    - $DEPLOY_BRANCH # Default branch for deployment
     - main
-
 pages:
   stage: deploy
   script:
-    - echo "Deploying to GitLab Pages"
-  dependencies:
+  script:
+    - echo "Starting deployment process for GitLab Pages"
     - build
   artifacts:
+    # The `public` directory is used as the output for the build process and is required by GitLab Pages.
+    # This ensures consistency between the build and deploy stages.
     paths:
       - public
   only:
+    - $DEPLOY_BRANCH # Default branch for deployment
     - main
